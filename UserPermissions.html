@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Users-Permissions API UI</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f5f5f5;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .section {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+    .field-group {
+      margin: .5rem 0;
+    }
+    .field-group label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: .3rem;
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: .5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    input[type="checkbox"] {
+      margin-right: .5rem;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: .5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: .5rem;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    pre, .formatted-output {
+      background: #f0f0f0;
+      padding: 0.8rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Users-Permissions API Interface</h1>
+
+  <script>
+    const API_BASE = 'http://192.168.100.9:1337/api/users-permissions';
+    const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNzQ5NjM5MjU2LCJleHAiOjE3NTIyMzEyNTZ9.AbThXMlMJPWlnzScWJyukX-1-BgZQES-q-WPKcUKf5U';
+
+    async function callApi(method, url, body, outputElem, formatType = '') {
+      outputElem.innerHTML = 'Loading...';
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + TOKEN
+          },
+          body: body ? JSON.stringify(body) : null
+        });
+        const data = await res.json();
+        if (formatType) {
+          outputElem.innerHTML = formatResponse(formatType, data);
+        } else {
+          outputElem.textContent = JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        outputElem.textContent = 'Error: ' + err;
+      }
+    }
+
+    function buildPermissionsObject(ctrl, action, isEnabled) {
+      return {
+        "api::content-type.content-type": {
+          "controllers": {
+            [ctrl]: {
+              [action]: { "enabled": isEnabled }
+            }
+          }
+        }
+      };
+    }
+
+    function formatResponse(type, data) {
+      if (type === 'permissions') {
+        let html = '';
+        const perms = data.permissions;
+        for (const contentType in perms) {
+          html += `<h3>${contentType}</h3>`;
+          const controllers = perms[contentType].controllers;
+          for (const ctrl in controllers) {
+            html += `<strong>${ctrl}</strong><ul>`;
+            for (const action in controllers[ctrl]) {
+              const enabled = controllers[ctrl][action].enabled ? '✅' : '❌';
+              html += `<li>${action}: ${enabled}</li>`;
+            }
+            html += '</ul>';
+          }
+        }
+        return html;
+      }
+
+      if (type === 'roles') {
+        return data.roles.map(role => `
+          <div>
+            <strong>ID:</strong> ${role.id}<br>
+            <strong>Name:</strong> ${role.name}<br>
+            <strong>Description:</strong> ${role.description}<br>
+            <strong>Type:</strong> ${role.type}<br>
+            <strong>Users:</strong> ${role.nb_users}<br>
+            <hr>
+          </div>
+        `).join('');
+      }
+
+      if (type === 'role') {
+        const role = data.role;
+        let html = `
+          <strong>ID:</strong> ${role.id}<br>
+          <strong>Name:</strong> ${role.name}<br>
+          <strong>Description:</strong> ${role.description}<br>
+          <strong>Type:</strong> ${role.type}<br>
+          <h4>Permissions:</h4>
+        `;
+        const perms = role.permissions;
+        for (const contentType in perms) {
+          html += `<h5>${contentType}</h5>`;
+          const controllers = perms[contentType].controllers;
+          for (const ctrl in controllers) {
+            html += `<strong>${ctrl}</strong><ul>`;
+            for (const action in controllers[ctrl]) {
+              const enabled = controllers[ctrl][action].enabled ? '✅' : '❌';
+              html += `<li>${action}: ${enabled}</li>`;
+            }
+            html += '</ul>';
+          }
+        }
+        return html;
+      }
+
+      return JSON.stringify(data, null, 2);
+    }
+  </script>
+
+  <!-- GET permissions -->
+  <div class="section">
+    <h2>1. GET Permissions</h2>
+    <button onclick="callApi('GET', API_BASE + '/permissions', null, document.getElementById('out-perm'), 'permissions')">
+      Fetch Permissions
+    </button>
+    <div class="formatted-output" id="out-perm"></div>
+  </div>
+
+  <!-- GET all roles -->
+  <div class="section">
+    <h2>2. GET All Roles</h2>
+    <button onclick="callApi('GET', API_BASE + '/roles', null, document.getElementById('out-roles'), 'roles')">
+      Fetch Roles
+    </button>
+    <div class="formatted-output" id="out-roles"></div>
+  </div>
+
+  <!-- GET role by ID -->
+  <div class="section">
+    <h2>3. GET Role by ID</h2>
+    <div class="field-group">
+      <label for="role-id-get">Role ID:</label>
+      <input type="text" id="role-id-get" placeholder="e.g. 1">
+    </div>
+    <button onclick="
+      const id = document.getElementById('role-id-get').value;
+      callApi('GET', API_BASE + '/roles/' + id, null, document.getElementById('out-role'), 'role');
+    ">
+      Fetch Role
+    </button>
+    <div class="formatted-output" id="out-role"></div>
+  </div>
+
+  <!-- POST create role -->
+  <div class="section">
+    <h2>4. Create Role (POST)</h2>
+    <div class="field-group">
+      <label>Name</label>
+      <input type="text" id="create-name">
+    </div>
+    <div class="field-group">
+      <label>Description</label>
+      <input type="text" id="create-desc">
+    </div>
+    <div class="field-group">
+      <label>Controller</label>
+      <input type="text" id="create-ctrl" placeholder="e.g. controllerA">
+    </div>
+    <div class="field-group">
+      <label>Action</label>
+      <select id="create-action">
+        <option value="find">find</option>
+        <option value="findOne">findOne</option>
+        <option value="create">create</option>
+        <option value="update">update</option>
+        <option value="delete">delete</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label><input type="checkbox" id="create-enabled"> Enabled</label>
+    </div>
+    <button onclick="
+      const name = document.getElementById('create-name').value;
+      const desc = document.getElementById('create-desc').value;
+      const ctrl = document.getElementById('create-ctrl').value;
+      const action = document.getElementById('create-action').value;
+      const enabled = document.getElementById('create-enabled').checked;
+      const body = { name, description: desc, permissions: buildPermissionsObject(ctrl, action, enabled) };
+      callApi('POST', API_BASE + '/roles', body, document.getElementById('out-create'));
+    ">Create Role</button>
+    <pre id="out-create"></pre>
+  </div>
+
+  <!-- PUT update role -->
+  <div class="section">
+    <h2>5. Update Role (PUT)</h2>
+    <div class="field-group">
+      <label>Role ID</label>
+      <input type="text" id="update-id">
+    </div>
+    <div class="field-group">
+      <label>Name</label>
+      <input type="text" id="update-name">
+    </div>
+    <div class="field-group">
+      <label>Description</label>
+      <input type="text" id="update-desc">
+    </div>
+    <div class="field-group">
+      <label>Controller</label>
+      <input type="text" id="update-ctrl">
+    </div>
+    <div class="field-group">
+      <label>Action</label>
+      <select id="update-action">
+        <option value="find">find</option>
+        <option value="findOne">findOne</option>
+        <option value="create">create</option>
+        <option value="update">update</option>
+        <option value="delete">delete</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label><input type="checkbox" id="update-enabled"> Enabled</label>
+    </div>
+    <button onclick="
+      const id = document.getElementById('update-id').value;
+      const name = document.getElementById('update-name').value;
+      const desc = document.getElementById('update-desc').value;
+      const ctrl = document.getElementById('update-ctrl').value;
+      const action = document.getElementById('update-action').value;
+      const enabled = document.getElementById('update-enabled').checked;
+      const body = { name, description: desc, permissions: buildPermissionsObject(ctrl, action, enabled) };
+      callApi('PUT', API_BASE + '/roles/' + id, body, document.getElementById('out-update'));
+    ">Update Role</button>
+    <pre id="out-update"></pre>
+  </div>
+
+  <!-- DELETE role -->
+  <div class="section">
+    <h2>6. Delete Role (DELETE)</h2>
+    <div class="field-group">
+      <label>Role ID</label>
+      <input type="text" id="role-id-del">
+    </div>
+    <button onclick="
+      const id = document.getElementById('role-id-del').value;
+      callApi('DELETE', API_BASE + '/roles/' + id, null, document.getElementById('out-delete'));
+    ">Delete Role</button>
+    <pre id="out-delete"></pre>
+  </div>
+
+</body>
+</html>

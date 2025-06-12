@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sonic Speed Assessments</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Press Start 2P', cursive;
+      background: linear-gradient(to bottom, #005eff, #ffffff);
+      margin: 0;
+      padding: 20px;
+      color: #fff;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #ffd700;
+      text-shadow: 2px 2px #000;
+    }
+
+    .filters {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .filters select {
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 2px solid #ff1c1c;
+      background-color: #ffffff;
+      color: #005eff;
+      font-family: 'Press Start 2P', cursive;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: linear-gradient(to bottom, #ffffff, #d6e4ff);
+      border-radius: 12px;
+      border: 3px solid #005eff;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      padding: 20px;
+      color: #002b80;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #ff1c1c;
+    }
+
+    .card p {
+      margin: 6px 0;
+      font-size: 12px;
+    }
+
+    .card p strong {
+      color: #005eff;
+    }
+
+    .loading, .no-results {
+      text-align: center;
+      font-size: 14px;
+      color: #ffd700;
+      margin-top: 40px;
+    }
+
+    option {
+      font-family: 'Press Start 2P', cursive;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sonic Speed Assessments</h1>
+
+  <div class="filters">
+    <select id="courseFilter">
+      <option value="">All Courses</option>
+    </select>
+    <select id="topicFilter">
+      <option value="">All Topics</option>
+    </select>
+  </div>
+
+  <div id="loading" class="loading">Spinning up assessments...</div>
+  <div class="container" id="assessment-container"></div>
+  <div class="no-results" id="noResults" style="display: none;">Too fast! No results found.</div>
+
+  <script>
+    const API_URL = 'https://tranquil-happiness-9964cd1a40.strapiapp.com/api/assessments';
+    let assessments = [];
+
+    async function fetchAssessments() {
+      try {
+        const response = await fetch(API_URL);
+        const json = await response.json();
+        assessments = json.data;
+        populateFilters(assessments);
+        displayAssessments(assessments);
+        document.getElementById('loading').style.display = 'none';
+      } catch (error) {
+        document.getElementById('loading').innerText = 'Failed to load assessments.';
+        console.error('Fetch error:', error);
+      }
+    }
+
+    function populateFilters(data) {
+      const courseSet = new Set();
+      const topicSet = new Set();
+
+      data.forEach(item => {
+        courseSet.add(item.CourseName);
+        topicSet.add(item.TopicName);
+      });
+
+      const courseFilter = document.getElementById('courseFilter');
+      const topicFilter = document.getElementById('topicFilter');
+
+      [...courseSet].sort().forEach(course => {
+        courseFilter.innerHTML += `<option value="${course}">${course}</option>`;
+      });
+
+      [...topicSet].sort().forEach(topic => {
+        topicFilter.innerHTML += `<option value="${topic}">${topic}</option>`;
+      });
+
+      courseFilter.addEventListener('change', applyFilters);
+      topicFilter.addEventListener('change', applyFilters);
+    }
+
+    function applyFilters() {
+      const course = document.getElementById('courseFilter').value;
+      const topic = document.getElementById('topicFilter').value;
+
+      const filtered = assessments.filter(item => {
+        return (!course || item.CourseName === course) &&
+               (!topic || item.TopicName === topic);
+      });
+
+      displayAssessments(filtered);
+    }
+
+    function displayAssessments(data) {
+      const container = document.getElementById('assessment-container');
+      const noResults = document.getElementById('noResults');
+
+      container.innerHTML = '';
+
+      if (data.length === 0) {
+        noResults.style.display = 'block';
+        return;
+      } else {
+        noResults.style.display = 'none';
+      }
+
+      data.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        card.innerHTML = `
+          <h2>${item.AssessmentName}</h2>
+          <p><strong>Course:</strong> ${item.CourseName}</p>
+          <p><strong>Topic:</strong> ${item.TopicName}</p>
+          <p><strong>Sprint:</strong> ${item.SprintNumber}</p>
+          <p><strong>Points:</strong> ${item.Points}</p>
+          <p><strong>Date:</strong> ${item.Date}</p>
+          ${item.Description ? `<p><strong>Description:</strong> ${item.Description}</p>` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    fetchAssessments();
+  </script>
+</body>
+</html>
