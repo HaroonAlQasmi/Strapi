@@ -65,11 +65,27 @@
 
   <script>
     const API_BASE = 'http://192.168.100.9:1337/api/users-permissions';
-    const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNzQ5NjM5MjU2LCJleHAiOjE3NTIyMzEyNTZ9.AbThXMlMJPWlnzScWJyukX-1-BgZQES-q-WPKcUKf5U';
+    let TOKEN = '';
+
+    // Fetch token from our local token server
+    async function initToken() {
+      try {
+        const res = await fetch('http://localhost:4000/get-token');
+        const json = await res.json();
+        TOKEN = json.token;
+      } catch (err) {
+        console.error('Failed to fetch token:', err);
+      }
+    }
+
+    // Immediately initialize the token
+    initToken();
 
     async function callApi(method, url, body, outputElem, formatType = '') {
       outputElem.innerHTML = 'Loading...';
       try {
+        // Wait until token is loaded
+        if (!TOKEN) await initToken();
         const res = await fetch(url, {
           method,
           headers: {
